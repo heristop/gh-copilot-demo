@@ -1,0 +1,58 @@
+name: Documentation Improvement
+description: Suggest improvements to documentation
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Type of Documentation
+      description: What type of documentation needs improvement?
+      options:
+        - README
+        - API Documentation
+        - Code Comments
+        - Setup/Installation Guide
+        - Architecture Documentation
+        - Tutorial/How-to Guide
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation that needs improvement?
+      placeholder: "e.g., README.md, /docs/api.md, line 42 in albums-api/Program.cs"
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's Wrong?
+      description: What is incorrect, unclear, or missing in the current documentation?
+      placeholder: Describe the issue with the current documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: What changes would improve the documentation?
+      placeholder: Describe what you think should be changed or added
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, examples, or screenshots here
