@@ -1,0 +1,25 @@
+{
+  "name": "gh-copilot-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for album viewer and album API v2",
+  "scripts": {
+    "dev:api": "pnpm --filter album-api-v2 dev",
+    "dev:front": "pnpm --filter album-viewer dev",
+    "build:api": "pnpm --filter album-api-v2 build",
+    "build:front": "pnpm --filter album-viewer build",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "oxlint --config oxlint.config.json",
+    "lint:fix": "oxlint --config oxlint.config.json --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "oxlint": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  }
+}
