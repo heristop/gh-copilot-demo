@@ -98,7 +98,7 @@ const handleImageError = (event: Event): void => {
   target.src = 'https://via.placeholder.com/300x300/667eea/white?text=Album+Cover'
 }
 
-const toggleWishlist = () => {
+const toggleWishlist = (): void => {
   emit('toggleWishlist', props.album.id)
   if (!isInWishlist.value) {
     toast.success(`${props.album.title} added to wishlist`, {
@@ -112,15 +112,11 @@ const toggleWishlist = () => {
   }
 }
 
-const addToCart = () => {
+const addToCart = (): void => {
   emit('addToCart', props.album)
-  toast.success(`${props.album.title} added to cart!`, {
-    description: `$${props.album.price.toFixed(2)} • by ${props.album.artist}`,
-    duration: 3000
-  })
 }
 
-const playPreview = () => {
+const playPreview = (): void => {
   toast.info(`Playing preview of "${props.album.title}"`, {
     description: 'Preview feature coming soon!',
     duration: 2500

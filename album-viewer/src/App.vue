@@ -68,6 +68,17 @@
           <Heart :size="18" />
           <span>{{ wishlist.length }} Wishlist</span>
         </div>
+        <div 
+          class="stat-card cart-stat"
+          v-motion
+          :initial="{ opacity: 0, scale: 0 }"
+          :enter="{ opacity: 1, scale: 1, transition: { delay: 900, type: 'spring' } }"
+          @click="openCart"
+        >
+          <ShoppingCart :size="18" />
+          <span>{{ cartItemCount }} Cart</span>
+          <span v-if="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+        </div>
       </div>
     </header>
 
@@ -137,10 +148,11 @@
             :key="album.id" 
             :album="album"
             :index="index"
-            :isWishlisted="wishlist.includes(album.id)"
+            :wishlist="wishlist"
             :viewMode="viewMode"
             @click="openModal(album)"
             @toggle-wishlist="toggleWishlist"
+            @add-to-cart="addToCart"
           />
         </TransitionGroup>
       </div>
@@ -153,6 +165,17 @@
       :isOpen="isModalOpen"
       @close="closeModal"
       @addToWishlist="toggleWishlist"
+    />
+
+    <!-- Cart Drawer -->
+    <CartDrawer 
+      :items="cart"
+      :isOpen="isCartOpen"
+      @close="closeCart"
+      @removeItem="removeFromCart"
+      @incrementQuantity="incrementCartQuantity"
+      @decrementQuantity="decrementCartQuantity"
+      @clearCart="clearCart"
     />
 
     <!-- Footer -->
@@ -185,7 +208,7 @@ import axios from 'axios'
 import { Toaster, toast } from 'vue-sonner'
 import { 
   Music2, Library, Sparkles, Heart, AlertCircle, 
-  RefreshCw, SearchX, RotateCcw, Info, Mail 
+  RefreshCw, SearchX, RotateCcw, Info, Mail, ShoppingCart 
 } from 'lucide-vue-next'
 
 import AlbumCard from './components/AlbumCard.vue'
@@ -194,7 +217,9 @@ import SearchBar from './components/SearchBar.vue'
 import FilterSort from './components/FilterSort.vue'
 import SkeletonCard from './components/SkeletonCard.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
+import CartDrawer from './components/CartDrawer.vue'
 import type { Album } from './types/album'
+import type { CartItem } from './types/cart'
 
 // State
 const albums = ref<Album[]>([])
@@ -207,6 +232,8 @@ const wishlist = ref<number[]>([])
 const selectedAlbum = ref<Album | null>(null)
 const isModalOpen = ref(false)
 const isDark = ref(true)
+const cart = ref<CartItem[]>([])
+const isCartOpen = ref(false)
 
 // Computed
 const filteredAlbums = computed(() => {
@@ -235,6 +262,10 @@ const filteredAlbums = computed(() => {
   }
   
   return result
+})
+
+const cartItemCount = computed(() => {
+  return cart.value.reduce((sum, item) => sum + item.quantity, 0)
 })
 
 // Methods
@@ -314,6 +345,71 @@ const showContactToast = () => {
   toast.info('Contact: hello@albumcollection.dev')
 }
 
+// Cart methods
+const addToCart = (album: Album): void => {
+  const existingItem = cart.value.find(item => item.album.id === album.id)
+  
+  if (existingItem) {
+    existingItem.quantity++
+    toast.success('Quantity updated!', {
+      description: `${album.title} - Now ${existingItem.quantity} in cart`
+    })
+  } else {
+    cart.value.push({ album, quantity: 1 })
+    toast.success('Added to cart!', {
+      description: `${album.title} - $${album.price.toFixed(2)}`
+    })
+  }
+  
+  localStorage.setItem('cart', JSON.stringify(cart.value))
+}
+
+const removeFromCart = (albumId: number): void => {
+  const index = cart.value.findIndex(item => item.album.id === albumId)
+  if (index > -1) {
+    const item = cart.value[index]
+    cart.value.splice(index, 1)
+    toast('Removed from cart', { description: item.album.title })
+    localStorage.setItem('cart', JSON.stringify(cart.value))
+  }
+}
+
+const incrementCartQuantity = (albumId: number): void => {
+  const item = cart.value.find(item => item.album.id === albumId)
+  if (item) {
+    item.quantity++
+    localStorage.setItem('cart', JSON.stringify(cart.value))
+  }
+}
+
+const decrementCartQuantity = (albumId: number): void => {
+  const item = cart.value.find(item => item.album.id === albumId)
+  if (item) {
+    if (item.quantity > 1) {
+      item.quantity--
+      localStorage.setItem('cart', JSON.stringify(cart.value))
+    } else {
+      removeFromCart(albumId)
+    }
+  }
+}
+
+const clearCart = (): void => {
+  cart.value = []
+  localStorage.setItem('cart', JSON.stringify(cart.value))
+  toast.info('Cart cleared')
+}
+
+const openCart = (): void => {
+  isCartOpen.value = true
+  document.body.style.overflow = 'hidden'
+}
+
+const closeCart = (): void => {
+  isCartOpen.value = false
+  document.body.style.overflow = ''
+}
+
 // Watch search
 let searchTimeout: ReturnType<typeof setTimeout>
 watch(searchQuery, (newVal) => {
@@ -328,8 +424,12 @@ watch(searchQuery, (newVal) => {
 })
 
 onMounted(() => {
-  const saved = localStorage.getItem('wishlist')
-  if (saved) wishlist.value = JSON.parse(saved)
+  const savedWishlist = localStorage.getItem('wishlist')
+  if (savedWishlist) wishlist.value = JSON.parse(savedWishlist)
+  
+  const savedCart = localStorage.getItem('cart')
+  if (savedCart) cart.value = JSON.parse(savedCart)
+  
   fetchAlbums()
 })
 </script>
@@ -503,6 +603,39 @@ onMounted(() => {
 .stat-card.wishlist-stat:hover {
   background: rgba(255, 107, 107, 0.2);
   border-color: rgba(255, 107, 107, 0.4);
+}
+
+.stat-card.cart-stat {
+  cursor: pointer;
+  position: relative;
+}
+
+.stat-card.cart-stat:hover {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 /* Main */
