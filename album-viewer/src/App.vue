@@ -137,7 +137,7 @@
             :key="album.id" 
             :album="album"
             :index="index"
-            :isWishlisted="wishlist.includes(album.id)"
+            :wishlist="wishlist"
             :viewMode="viewMode"
             @click="openModal(album)"
             @toggle-wishlist="toggleWishlist"
@@ -260,14 +260,19 @@ const fetchAlbums = async () => {
   }
 }
 
-const toggleWishlist = (album: Album) => {
-  const index = wishlist.value.indexOf(album.id)
+const toggleWishlist = (albumOrId: Album | number) => {
+  const albumId = typeof albumOrId === 'number' ? albumOrId : albumOrId.id
+  const album = typeof albumOrId === 'number' 
+    ? albums.value.find(a => a.id === albumOrId)
+    : albumOrId
+  
+  const index = wishlist.value.indexOf(albumId)
   if (index > -1) {
     wishlist.value.splice(index, 1)
-    toast('Removed from wishlist', { description: album.title })
+    toast('Removed from wishlist', { description: album?.title })
   } else {
-    wishlist.value.push(album.id)
-    toast.success('Added to wishlist!', { description: album.title })
+    wishlist.value.push(albumId)
+    toast.success('Added to wishlist!', { description: album?.title })
   }
   localStorage.setItem('wishlist', JSON.stringify(wishlist.value))
 }
