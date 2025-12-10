@@ -19,11 +19,15 @@ import { ref, onMounted } from 'vue'
 import { Sun, Moon } from 'lucide-vue-next'
 
 const isDark = ref(true)
+const emit = defineEmits<{
+  toggle: []
+}>()
 
 const toggleTheme = () => {
   isDark.value = !isDark.value
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  emit('toggle')
 }
 
 onMounted(() => {

@@ -330,6 +330,12 @@ watch(searchQuery, (newVal) => {
 onMounted(() => {
   const saved = localStorage.getItem('wishlist')
   if (saved) wishlist.value = JSON.parse(saved)
+  
+  const savedTheme = localStorage.getItem('theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+  }
+  
   fetchAlbums()
 })
 </script>
