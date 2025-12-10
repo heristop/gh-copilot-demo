@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "serve": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@vueuse/core": "^14.1.0",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^24.10.2",
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.1",
     "happy-dom": "^20.0.11",

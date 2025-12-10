@@ -53,11 +53,12 @@ let albums: Album[] = [
 ];
 
 export const getAllAlbums = (): Album[] => {
-  return [...albums];
+  return albums.map(album => ({ ...album }));
 };
 
 export const getAlbumById = (id: number): Album | undefined => {
-  return albums.find(album => album.id === id);
+  const album = albums.find(album => album.id === id);
+  return album ? { ...album } : undefined;
 };
 
 export const addAlbum = (album: Omit<Album, 'id'>): Album => {
