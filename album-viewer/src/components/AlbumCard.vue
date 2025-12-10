@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <article 
     class="album-card"
     v-motion
     :initial="{ opacity: 0, y: 50, scale: 0.9 }"
@@ -14,58 +14,85 @@
     }"
     :hovered="{ scale: 1.02 }"
     @click="$emit('openModal', album)"
+    tabindex="0"
+    role="article"
+    :aria-label="`${album.title} by ${album.artist}, $${album.price.toFixed(2)}${isInWishlist ? ', in wishlist' : ''}`"
+    @keydown.enter="$emit('openModal', album)"
+    @keydown.space.prevent="$emit('openModal', album)"
   >
     <!-- Wishlist Button -->
     <button 
       class="wishlist-btn"
       :class="{ active: isInWishlist }"
       @click.stop="toggleWishlist"
-      :aria-label="isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'"
+      @keydown.enter.stop="toggleWishlist"
+      @keydown.space.stop.prevent="toggleWishlist"
+      :aria-label="isInWishlist ? `Remove ${album.title} from wishlist` : `Add ${album.title} to wishlist`"
+      :aria-pressed="isInWishlist"
     >
-      <Heart :size="20" :fill="isInWishlist ? 'currentColor' : 'none'" />
+      <Heart :size="20" :fill="isInWishlist ? 'currentColor' : 'none'" aria-hidden="true" />
     </button>
 
     <div class="album-image">
       <img 
         :src="album.image_url" 
-        :alt="album.title"
+        :alt="`Album cover for ${album.title} by ${album.artist}`"
         @error="handleImageError"
         loading="lazy"
       />
-      <div class="play-overlay">
-        <div class="play-button" @click.stop="playPreview">
-          <Play :size="28" />
-        </div>
+      <div class="play-overlay" aria-hidden="true">
+        <button 
+          class="play-button" 
+          @click.stop="playPreview"
+          @keydown.enter.stop="playPreview"
+          @keydown.space.stop.prevent="playPreview"
+          :aria-label="`Play preview of ${album.title}`"
+          tabindex="0"
+        >
+          <Play :size="28" aria-hidden="true" />
+        </button>
       </div>
-      <div v-if="album.id <= 2" class="album-badge">NEW</div>
+      <div v-if="album.id <= 2" class="album-badge" role="status" aria-label="New album">NEW</div>
     </div>
     
     <div class="album-info">
-      <h3 class="album-title">{{ album.title }}</h3>
+      <h3 class="album-title" :id="`album-title-${album.id}`">{{ album.title }}</h3>
       <p class="album-artist">
-        <User :size="16" class="artist-icon" />
-        {{ album.artist }}
+        <User :size="16" class="artist-icon" aria-hidden="true" />
+        <span class="sr-only">Artist: </span>{{ album.artist }}
       </p>
       <div class="album-price">
-        <span class="price">${{ album.price.toFixed(2) }}</span>
-        <span class="price-label">
+        <span class="price" aria-label="Price">${{ album.price.toFixed(2) }}</span>
+        <span class="price-label" aria-hidden="true">
           <Sparkles :size="12" />
           Best Price
         </span>
       </div>
     </div>
     
-    <div class="album-actions">
-      <button class="btn btn-primary" @click.stop="addToCart">
-        <ShoppingCart :size="18" />
-        Add to Cart
+    <div class="album-actions" role="group" aria-label="Album actions">
+      <button 
+        class="btn btn-primary" 
+        @click.stop="addToCart"
+        @keydown.enter.stop="addToCart"
+        @keydown.space.stop.prevent="addToCart"
+        :aria-label="`Add ${album.title} to cart for $${album.price.toFixed(2)}`"
+      >
+        <ShoppingCart :size="18" aria-hidden="true" />
+        <span>Add to Cart</span>
       </button>
-      <button class="btn btn-secondary" @click.stop="$emit('openModal', album)">
-        <Eye :size="18" />
-        Details
+      <button 
+        class="btn btn-secondary" 
+        @click.stop="$emit('openModal', album)"
+        @keydown.enter.stop="$emit('openModal', album)"
+        @keydown.space.stop.prevent="$emit('openModal', album)"
+        :aria-label="`View details for ${album.title}`"
+      >
+        <Eye :size="18" aria-hidden="true" />
+        <span>Details</span>
       </button>
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
@@ -98,7 +125,7 @@ const handleImageError = (event: Event): void => {
   target.src = 'https://via.placeholder.com/300x300/667eea/white?text=Album+Cover'
 }
 
-const toggleWishlist = () => {
+const toggleWishlist = (): void => {
   emit('toggleWishlist', props.album.id)
   if (!isInWishlist.value) {
     toast.success(`${props.album.title} added to wishlist`, {
@@ -112,7 +139,7 @@ const toggleWishlist = () => {
   }
 }
 
-const addToCart = () => {
+const addToCart = (): void => {
   emit('addToCart', props.album)
   toast.success(`${props.album.title} added to cart!`, {
     description: `$${props.album.price.toFixed(2)} • by ${props.album.artist}`,
@@ -120,7 +147,7 @@ const addToCart = () => {
   })
 }
 
-const playPreview = () => {
+const playPreview = (): void => {
   toast.info(`Playing preview of "${props.album.title}"`, {
     description: 'Preview feature coming soon!',
     duration: 2500
@@ -129,21 +156,64 @@ const playPreview = () => {
 </script>
 
 <style scoped>
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .album-card {
   background: var(--card-bg);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: var(--shadow-md);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
   cursor: pointer;
   position: relative;
 }
 
+/* Focus styles for keyboard navigation */
+.album-card:focus {
+  outline: 3px solid var(--accent-color, #a78bfa);
+  outline-offset: 4px;
+  transform: translateY(-12px);
+  box-shadow: var(--shadow-xl);
+}
+
+.album-card:focus-visible {
+  outline: 3px solid var(--accent-color, #a78bfa);
+  outline-offset: 4px;
+}
+
+.album-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .album-card:hover {
   transform: translateY(-12px);
   box-shadow: var(--shadow-xl);
+  border-color: var(--accent-color);
+}
+
+.album-card:hover::before {
+  opacity: 1;
 }
 
 /* Wishlist Button */
@@ -152,28 +222,61 @@ const playPreview = () => {
   top: 15px;
   left: 15px;
   z-index: 10;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  border: none;
+  background: rgba(15, 12, 41, 0.9);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.6);
   transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.wishlist-btn:focus {
+  outline: 3px solid #f472b6;
+  outline-offset: 2px;
+}
+
+.wishlist-btn:focus-visible {
+  outline: 3px solid #f472b6;
+  outline-offset: 2px;
 }
 
 .wishlist-btn:hover {
-  transform: scale(1.1);
-  color: #ef4444;
+  transform: scale(1.15);
+  color: #f472b6;
+  border-color: #f472b6;
+  background: rgba(244, 114, 182, 0.15);
+  box-shadow: 0 4px 25px rgba(244, 114, 182, 0.4);
 }
 
 .wishlist-btn.active {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: #fff;
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+  border-color: #f472b6;
+  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.6), 0 0 30px rgba(244, 114, 182, 0.4);
+  animation: pulse-heart 1.5s ease-in-out infinite;
+}
+
+.wishlist-btn.active:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 25px rgba(236, 72, 153, 0.7), 0 0 40px rgba(244, 114, 182, 0.5);
+}
+
+@keyframes pulse-heart {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 4px 20px rgba(236, 72, 153, 0.6), 0 0 30px rgba(244, 114, 182, 0.4);
+  }
+  50% { 
+    transform: scale(1.08);
+    box-shadow: 0 4px 25px rgba(236, 72, 153, 0.7), 0 0 40px rgba(244, 114, 182, 0.5);
+  }
 }
 
 .album-image {
@@ -266,10 +369,13 @@ const playPreview = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-weight: 500;
 }
 
 .artist-icon {
-  opacity: 0.7;
+  color: var(--accent-color);
+  opacity: 1;
+  flex-shrink: 0;
 }
 
 .album-price {
@@ -281,7 +387,7 @@ const playPreview = () => {
 .price {
   font-size: 1.75rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #a78bfa, #f472b6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -289,14 +395,15 @@ const playPreview = () => {
 
 .price-label {
   font-size: 0.75rem;
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
   padding: 0.3rem 0.75rem;
   border-radius: 15px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  border: 1px solid rgba(74, 222, 128, 0.3);
 }
 
 .album-actions {
@@ -321,9 +428,10 @@ const playPreview = () => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #8b5cf6, #d946ef);
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary svg {
@@ -333,20 +441,29 @@ const playPreview = () => {
 
 .btn-primary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6), 0 0 20px rgba(217, 70, 239, 0.3);
 }
 
 .btn-secondary {
-  background: var(--bg-secondary);
+  background: rgba(139, 92, 246, 0.1);
   color: var(--accent-color);
-  border: 2px solid var(--border-color);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.btn-secondary svg {
+  color: var(--accent-color);
 }
 
 .btn-secondary:hover {
-  background: var(--accent-color);
-  color: white;
+  background: rgba(139, 92, 246, 0.25);
+  color: #c4b5fd;
   border-color: var(--accent-color);
   transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.btn-secondary:hover svg {
+  color: #c4b5fd;
 }
 
 @media (max-width: 768px) {

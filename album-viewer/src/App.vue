@@ -1,7 +1,21 @@
 <template>
   <div class="app" :class="{ 'light-theme': !isDark }">
+    <!-- Skip Link for Keyboard Users -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- Live Region for Screen Reader Announcements -->
+    <div 
+      role="status" 
+      aria-live="polite" 
+      aria-atomic="true" 
+      class="sr-only"
+      ref="announcer"
+    >
+      {{ announcement }}
+    </div>
+
     <!-- Background Effects -->
-    <div class="background-effects">
+    <div class="background-effects" aria-hidden="true">
       <div class="gradient-orb orb-1"></div>
       <div class="gradient-orb orb-2"></div>
       <div class="gradient-orb orb-3"></div>
@@ -11,16 +25,19 @@
     </div>
 
     <!-- Theme Toggle -->
-    <ThemeToggle @toggle="isDark = !isDark" />
+    <ThemeToggle :isDark="isDark" @toggle="isDark = !isDark" />
 
-    <!-- Toast Notifications -->
-    <Toaster 
-      position="top-right" 
-      :theme="isDark ? 'dark' : 'light'"
-      :richColors="true"
-      :expand="true"
-      :visibleToasts="4"
-    />
+    <!-- Toast Notifications - rendered after mount to avoid ref warning -->
+    <Teleport to="body">
+      <Toaster 
+        v-if="isMounted"
+        position="top-right" 
+        :theme="isDark ? 'dark' : 'light'"
+        :rich-colors="true"
+        :expand="true"
+        :visible-toasts="4"
+      />
+    </Teleport>
 
     <!-- Header -->
     <header 
@@ -72,10 +89,10 @@
     </header>
 
     <!-- Main Content -->
-    <main class="main">
+    <main id="main-content" class="main" role="main">
       <!-- Search & Filters -->
-      <div v-if="!loading && !error" class="controls">
-        <SearchBar v-model="searchQuery" />
+      <div v-if="!loading && !error" class="controls" role="search" aria-label="Search and filter albums">
+        <SearchBar v-model="searchQuery" @update:modelValue="announceSearchResults" />
         <FilterSort v-model="sortBy" v-model:viewMode="viewMode" />
       </div>
 
@@ -131,16 +148,24 @@
           :name="viewMode === 'grid' ? 'album-grid' : 'album-list'"
           tag="div" 
           :class="['albums-container', viewMode]"
+          role="list"
+          aria-label="Album collection"
+          @keydown="handleGridKeydown"
         >
           <AlbumCard 
             v-for="(album, index) in filteredAlbums" 
             :key="album.id" 
             :album="album"
             :index="index"
-            :isWishlisted="wishlist.includes(album.id)"
+            :wishlist="wishlist"
             :viewMode="viewMode"
+            :tabindex="index === focusedIndex ? 0 : -1"
+            :ref="el => setAlbumCardRef(el, index)"
+            role="listitem"
             @click="openModal(album)"
-            @toggle-wishlist="toggleWishlist"
+            @toggle-wishlist="handleToggleWishlist"
+            @keydown.enter="openModal(album)"
+            @keydown.space.prevent="openModal(album)"
           />
         </TransitionGroup>
       </div>
@@ -180,9 +205,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent, type ComponentPublicInstance } from 'vue'
 import axios from 'axios'
-import { Toaster, toast } from 'vue-sonner'
+import { toast } from 'vue-sonner'
+
+// Wrap Toaster in defineAsyncComponent to fix "Missing ref owner context" warning
+const Toaster = defineAsyncComponent(() => 
+  import('vue-sonner').then(m => m.Toaster)
+)
+
 import { 
   Music2, Library, Sparkles, Heart, AlertCircle, 
   RefreshCw, SearchX, RotateCcw, Info, Mail 
@@ -207,6 +238,13 @@ const wishlist = ref<number[]>([])
 const selectedAlbum = ref<Album | null>(null)
 const isModalOpen = ref(false)
 const isDark = ref(true)
+const isMounted = ref(false) // For conditional Toaster rendering
+
+// Accessibility state
+const announcement = ref('')
+const focusedIndex = ref(0)
+const albumCardRefs = ref<(ComponentPublicInstance | null)[]>([])
+const announcer = ref<HTMLDivElement | null>(null)
 
 // Computed
 const filteredAlbums = computed(() => {
@@ -238,7 +276,7 @@ const filteredAlbums = computed(() => {
 })
 
 // Methods
-const fetchAlbums = async () => {
+const fetchAlbums = async (): Promise<void> => {
   try {
     loading.value = true
     error.value = null
@@ -260,43 +298,45 @@ const fetchAlbums = async () => {
   }
 }
 
-const toggleWishlist = (album: Album) => {
+const toggleWishlist = (album: Album): void => {
   const index = wishlist.value.indexOf(album.id)
   if (index > -1) {
-    wishlist.value.splice(index, 1)
+    // Create new array to trigger reactivity
+    wishlist.value = wishlist.value.filter(id => id !== album.id)
     toast('Removed from wishlist', { description: album.title })
   } else {
-    wishlist.value.push(album.id)
+    // Create new array to trigger reactivity
+    wishlist.value = [...wishlist.value, album.id]
     toast.success('Added to wishlist!', { description: album.title })
   }
   localStorage.setItem('wishlist', JSON.stringify(wishlist.value))
 }
 
-const openModal = (album: Album) => {
+const openModal = (album: Album): void => {
   selectedAlbum.value = album
   isModalOpen.value = true
   document.body.style.overflow = 'hidden'
 }
 
-const closeModal = () => {
+const closeModal = (): void => {
   isModalOpen.value = false
   document.body.style.overflow = ''
   setTimeout(() => { selectedAlbum.value = null }, 300)
 }
 
-const resetFilters = () => {
+const resetFilters = (): void => {
   searchQuery.value = ''
   sortBy.value = 'default'
   toast.info('Filters reset')
 }
 
-const getNoteStyle = (n: number) => ({
+const getNoteStyle = (n: number): Record<string, string> => ({
   left: `${(n * 8) % 100}%`,
   animationDelay: `${n * 0.5}s`,
   animationDuration: `${15 + n * 2}s`
 })
 
-const showWishlistToast = () => {
+const showWishlistToast = (): void => {
   if (wishlist.value.length === 0) {
     toast.info('Your wishlist is empty')
   } else {
@@ -304,14 +344,96 @@ const showWishlistToast = () => {
   }
 }
 
-const showAboutToast = () => {
+const showAboutToast = (): void => {
   toast('Album Collection v2.0', {
     description: 'A modern music album browser built with Vue 3'
   })
 }
 
-const showContactToast = () => {
+const showContactToast = (): void => {
   toast.info('Contact: hello@albumcollection.dev')
+}
+
+// Accessibility methods
+const announce = (message: string): void => {
+  announcement.value = ''
+  // Force re-announcement by clearing and setting in next tick
+  setTimeout(() => {
+    announcement.value = message
+  }, 100)
+}
+
+const announceSearchResults = (): void => {
+  setTimeout(() => {
+    const count = filteredAlbums.value.length
+    if (searchQuery.value) {
+      announce(`${count} album${count !== 1 ? 's' : ''} found for "${searchQuery.value}"`)
+    }
+  }, 300)
+}
+
+const setAlbumCardRef = (el: ComponentPublicInstance | Element | null, index: number): void => {
+  if (el) {
+    albumCardRefs.value[index] = el as ComponentPublicInstance
+  }
+}
+
+const handleGridKeydown = (event: KeyboardEvent): void => {
+  const total = filteredAlbums.value.length
+  if (total === 0) return
+
+  // Calculate columns based on view mode
+  const columns = viewMode.value === 'grid' ? Math.min(3, total) : 1
+  let newIndex = focusedIndex.value
+
+  switch (event.key) {
+    case 'ArrowRight':
+      event.preventDefault()
+      newIndex = Math.min(focusedIndex.value + 1, total - 1)
+      break
+    case 'ArrowLeft':
+      event.preventDefault()
+      newIndex = Math.max(focusedIndex.value - 1, 0)
+      break
+    case 'ArrowDown':
+      event.preventDefault()
+      newIndex = Math.min(focusedIndex.value + columns, total - 1)
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      newIndex = Math.max(focusedIndex.value - columns, 0)
+      break
+    case 'Home':
+      event.preventDefault()
+      newIndex = 0
+      break
+    case 'End':
+      event.preventDefault()
+      newIndex = total - 1
+      break
+    default:
+      return
+  }
+
+  if (newIndex !== focusedIndex.value) {
+    focusedIndex.value = newIndex
+    // Focus the card element
+    const cardRef = albumCardRefs.value[newIndex]
+    if (cardRef && cardRef.$el) {
+      cardRef.$el.focus()
+      const album = filteredAlbums.value[newIndex]
+      if (album) {
+        announce(`${album.title} by ${album.artist}`)
+      }
+    }
+  }
+}
+
+const handleToggleWishlist = (albumId: number): void => {
+  const album = albums.value.find(a => a.id === albumId)
+  if (album) {
+    toggleWishlist(album)
+  }
 }
 
 // Watch search
@@ -328,6 +450,15 @@ watch(searchQuery, (newVal) => {
 })
 
 onMounted(() => {
+  // Set mounted flag for Toaster rendering
+  isMounted.value = true
+  
+  // Load theme preference
+  const savedTheme = localStorage.getItem('theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+  }
+  
   const saved = localStorage.getItem('wishlist')
   if (saved) wishlist.value = JSON.parse(saved)
   fetchAlbums()
@@ -335,16 +466,78 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Accessibility - Skip Link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-color);
+  color: white;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 10000;
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid white;
+  outline-offset: 2px;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* CSS Variables for theming */
 .app {
+  --text-primary: #f8fafc;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --bg-primary: #0f0c29;
+  --bg-secondary: rgba(255, 255, 255, 0.08);
+  --card-bg: rgba(30, 27, 75, 0.85);
+  --card-bg-hover: rgba(40, 37, 90, 0.9);
+  --border-color: rgba(139, 92, 246, 0.25);
+  --accent-color: #a78bfa;
+  --accent-color-bright: #c4b5fd;
+  --shadow-md: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(139, 92, 246, 0.1);
+  --shadow-xl: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.15);
+  --glow-color: rgba(139, 92, 246, 0.4);
+  
   min-height: 100vh;
   padding: 2rem;
   position: relative;
   overflow-x: hidden;
-  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  background: linear-gradient(135deg, #0f0c29 0%, #1e1b4b 50%, #312e81 100%);
   transition: all 0.5s ease;
 }
 
 .app.light-theme {
+  --text-primary: #1e1b4b;
+  --text-secondary: #64748b;
+  --bg-primary: #f5f7fa;
+  --bg-secondary: rgba(102, 126, 234, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-bg-hover: rgba(255, 255, 255, 1);
+  --border-color: rgba(0, 0, 0, 0.08);
+  --accent-color: #667eea;
+  --accent-color-bright: #818cf8;
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+  --glow-color: rgba(102, 126, 234, 0.2);
+  
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 50%, #c3cfe2 100%);
 }
 
@@ -360,36 +553,48 @@ onMounted(() => {
 .gradient-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.5;
+  filter: blur(100px);
+  opacity: 0.6;
   animation: float-orb 20s ease-in-out infinite;
 }
 
 .orb-1 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, #667eea 0%, transparent 70%);
-  top: -200px;
-  left: -200px;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, transparent 70%);
+  top: -250px;
+  left: -250px;
 }
 
 .orb-2 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, #f093fb 0%, transparent 70%);
-  bottom: -150px;
-  right: -150px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.7) 0%, transparent 70%);
+  bottom: -200px;
+  right: -200px;
   animation-delay: -10s;
 }
 
 .orb-3 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, #4facfe 0%, transparent 70%);
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.6) 0%, transparent 70%);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   animation-delay: -5s;
+}
+
+.light-theme .orb-1 {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+}
+
+.light-theme .orb-2 {
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.25) 0%, transparent 70%);
+}
+
+.light-theme .orb-3 {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
 }
 
 @keyframes float-orb {
@@ -407,14 +612,20 @@ onMounted(() => {
 .note {
   position: absolute;
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.1);
+  color: rgba(139, 92, 246, 0.25);
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
   animation: float-note linear infinite;
+}
+
+.light-theme .note {
+  color: rgba(102, 126, 234, 0.15);
+  text-shadow: none;
 }
 
 @keyframes float-note {
   0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-  10% { opacity: 0.15; }
-  90% { opacity: 0.15; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
   100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
 }
 
@@ -656,6 +867,12 @@ onMounted(() => {
 
 .album-grid-move {
   transition: transform 0.4s ease;
+}
+
+/* Toast Container */
+.toast-container {
+  position: fixed;
+  z-index: 9999;
 }
 
 /* Footer */
