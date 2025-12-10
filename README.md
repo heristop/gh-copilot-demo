@@ -32,6 +32,7 @@ There are multiple ways to run this solution locally. Choose the method that bes
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Node.js](https://nodejs.org/) (version 16 or higher)
+- [pnpm](https://pnpm.io/) (version 8 or higher)
 - [TypeScript](https://www.typescriptlang.org/) (automatically installed with project dependencies)
 - [Visual Studio Code](https://code.visualstudio.com/) (recommended)
 
@@ -77,13 +78,13 @@ The API will start on `http://localhost:3000` and you can access the Swagger doc
 cd album-viewer
 
 # Install dependencies (first time only)
-npm install
+pnpm install
 
 # Start the development server
-npm run dev
+pnpm run dev
 
 # Optional: Run TypeScript type checking
-npm run type-check
+pnpm run type-check
 ```
 
 The Vue.js TypeScript app will start on `http://localhost:3001` and automatically open in your browser.
@@ -99,7 +100,7 @@ dotnet run
 
 # Terminal 2 - Start the Vue TypeScript app
 cd album-viewer
-npm run dev
+pnpm run dev
 ```
 
 ### Environment Configuration
