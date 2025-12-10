@@ -208,6 +208,7 @@
 import { ref, computed, onMounted, watch, defineAsyncComponent, type ComponentPublicInstance } from 'vue'
 import axios from 'axios'
 import { toast } from 'vue-sonner'
+import { withRetry } from './utils/retry'
 
 // Wrap Toaster in defineAsyncComponent to fix "Missing ref owner context" warning
 const Toaster = defineAsyncComponent(() => 
@@ -284,7 +285,22 @@ const fetchAlbums = async (): Promise<void> => {
     // Simulate network delay for skeleton effect
     await new Promise(resolve => setTimeout(resolve, 1200))
     
-    const response = await axios.get<Album[]>('/albums')
+    // Fetch albums with automatic retry logic
+    const response = await withRetry(
+      () => axios.get<Album[]>('/albums'),
+      {
+        maxAttempts: 3,
+        initialDelay: 1000,
+        backoffFactor: 2,
+        onRetry: (attempt, error) => {
+          toast.info(`Retrying...`, {
+            description: `Attempt ${attempt} of 3`
+          })
+          console.log(`Retry attempt ${attempt}:`, error.message)
+        }
+      }
+    )
+    
     albums.value = response.data
     
     toast.success('Albums loaded!', {
