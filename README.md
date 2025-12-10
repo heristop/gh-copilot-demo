@@ -117,3 +117,13 @@ If you need to change these settings, you can modify:
 ### Alternative: GitHub Codespaces
 
 The easiest way is to open this solution in a GitHub Codespace, or run it locally in a devcontainer. The development environment will be automatically configured for you.
+
+## Contributing
+
+We welcome contributions to this project! If you'd like to report a bug, request a feature, or improve documentation, please use our issue templates:
+
+- **[Bug Report](../../issues/new?template=bug_report.yml)**: Report bugs or issues you've encountered
+- **[Feature Request](../../issues/new?template=feature_request.yml)**: Suggest new features or improvements
+- **[Documentation](../../issues/new?template=documentation.yml)**: Help improve our documentation
+
+Before creating a new issue, please search existing issues to avoid duplicates.
