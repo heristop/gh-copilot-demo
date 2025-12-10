@@ -5,32 +5,36 @@
     :initial="{ opacity: 0, y: -20 }"
     :enter="{ opacity: 1, y: 0, transition: { delay: 400 } }"
   >
-    <div class="filter-group">
+    <div class="filter-group" role="group" aria-label="Sort options">
       <button 
         v-for="option in sortOptions" 
         :key="option.value"
         :class="['filter-btn', { active: modelValue === option.value }]"
         @click="$emit('update:modelValue', option.value)"
+        :aria-pressed="modelValue === option.value"
+        :aria-label="`Sort by ${option.label}`"
       >
-        <component :is="option.icon" :size="16" />
+        <component :is="option.icon" :size="16" aria-hidden="true" />
         <span>{{ option.label }}</span>
       </button>
     </div>
     
-    <div class="view-toggle">
+    <div class="view-toggle" role="group" aria-label="View mode">
       <button 
         :class="['view-btn', { active: viewMode === 'grid' }]"
         @click="$emit('update:viewMode', 'grid')"
         aria-label="Grid view"
+        :aria-pressed="viewMode === 'grid'"
       >
-        <LayoutGrid :size="18" />
+        <LayoutGrid :size="18" aria-hidden="true" />
       </button>
       <button 
         :class="['view-btn', { active: viewMode === 'list' }]"
         @click="$emit('update:viewMode', 'list')"
         aria-label="List view"
+        :aria-pressed="viewMode === 'list'"
       >
-        <List :size="18" />
+        <List :size="18" aria-hidden="true" />
       </button>
     </div>
   </div>
@@ -89,11 +93,23 @@ const sortOptions = [
   font-size: 0.85rem;
   font-weight: 500;
   transition: all 0.3s ease;
+  /* Minimum touch target size */
+  min-height: 44px;
 }
 
 .filter-btn:hover {
   color: white;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-btn:focus {
+  outline: 3px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.filter-btn:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .filter-btn.active {
@@ -122,10 +138,23 @@ const sortOptions = [
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: all 0.3s ease;
+  /* Minimum touch target size */
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .view-btn:hover {
   color: white;
+}
+
+.view-btn:focus {
+  outline: 3px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.view-btn:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .view-btn.active {

@@ -8,15 +8,15 @@ const app = createApp(App)
 
 app.use(MotionPlugin, {
   directives: {
-    'pop': {
+    'custom-pop': {
       initial: { scale: 0, opacity: 0 },
       enter: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } }
     },
-    'slide-up': {
+    'custom-slide-up': {
       initial: { y: 100, opacity: 0 },
       visibleOnce: { y: 0, opacity: 1, transition: { duration: 600 } }
     },
-    'fade-in': {
+    'custom-fade-in': {
       initial: { opacity: 0 },
       enter: { opacity: 1, transition: { duration: 500 } }
     }

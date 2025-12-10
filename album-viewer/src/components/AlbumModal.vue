@@ -1,95 +1,128 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="isOpen" class="modal-overlay" @click.self="$emit('close')">
+    <Transition name="modal" @after-enter="onModalOpen" @before-leave="onModalClose">
+      <div 
+        v-if="isOpen" 
+        class="modal-overlay" 
+        @click.self="$emit('close')"
+        @keydown="handleKeydown"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="`modal-title-${album.id}`"
+        :aria-describedby="`modal-desc-${album.id}`"
+      >
         <div 
           class="modal-content"
+          ref="modalContent"
           v-motion
           :initial="{ opacity: 0, scale: 0.9, y: 50 }"
           :enter="{ opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } }"
         >
-          <button class="close-btn" @click="$emit('close')" aria-label="Close modal">
-            <X :size="24" />
+          <button 
+            class="close-btn" 
+            @click="$emit('close')" 
+            aria-label="Close album details"
+            ref="closeButton"
+          >
+            <X :size="24" aria-hidden="true" />
           </button>
           
           <div class="modal-image">
-            <img :src="album.image_url" :alt="album.title" />
+            <img :src="album.image_url" :alt="`Album cover for ${album.title} by ${album.artist}`" />
             <div class="image-overlay">
-              <button class="play-large-btn" @click="togglePlay">
-                <component :is="isPlaying ? Pause : Play" :size="40" />
+              <button 
+                class="play-large-btn" 
+                @click="togglePlay"
+                :aria-label="isPlaying ? `Pause ${album.title} preview` : `Play ${album.title} preview`"
+                :aria-pressed="isPlaying"
+              >
+                <component :is="isPlaying ? Pause : Play" :size="40" aria-hidden="true" />
               </button>
             </div>
             
             <!-- Audio visualizer -->
-            <div v-if="isPlaying" class="audio-visualizer">
+            <div v-if="isPlaying" class="audio-visualizer" aria-hidden="true">
               <div v-for="n in 12" :key="n" class="bar" :style="{ animationDelay: `${n * 0.1}s` }"></div>
             </div>
           </div>
           
           <div class="modal-info">
             <div class="album-header">
-              <h2>{{ album.title }}</h2>
+              <h2 :id="`modal-title-${album.id}`">{{ album.title }}</h2>
               <button 
                 class="wishlist-btn"
                 :class="{ active: isWishlisted }"
                 @click="toggleWishlist"
-                aria-label="Add to wishlist"
+                :aria-label="isWishlisted ? `Remove ${album.title} from wishlist` : `Add ${album.title} to wishlist`"
+                :aria-pressed="isWishlisted"
               >
-                <Heart :size="24" :fill="isWishlisted ? 'currentColor' : 'none'" />
+                <Heart :size="24" :fill="isWishlisted ? 'currentColor' : 'none'" aria-hidden="true" />
               </button>
             </div>
             
-            <p class="artist">
-              <Music :size="18" />
-              {{ album.artist }}
+            <p class="artist" :id="`modal-desc-${album.id}`">
+              <Music :size="18" aria-hidden="true" />
+              <span class="sr-only">Artist: </span>{{ album.artist }}
             </p>
             
-            <div class="album-meta">
-              <span class="meta-item">
-                <Disc3 :size="16" />
-                12 tracks
+            <div class="album-meta" role="list" aria-label="Album information">
+              <span class="meta-item" role="listitem">
+                <Disc3 :size="16" aria-hidden="true" />
+                <span class="sr-only">Number of tracks: </span>12 tracks
               </span>
-              <span class="meta-item">
-                <Clock :size="16" />
-                45 min
+              <span class="meta-item" role="listitem">
+                <Clock :size="16" aria-hidden="true" />
+                <span class="sr-only">Duration: </span>45 min
               </span>
-              <span class="meta-item">
-                <Calendar :size="16" />
-                2024
+              <span class="meta-item" role="listitem">
+                <Calendar :size="16" aria-hidden="true" />
+                <span class="sr-only">Release year: </span>2024
               </span>
             </div>
             
-            <div class="price-section">
-              <span class="price">${{ album.price.toFixed(2) }}</span>
-              <span class="original-price">${{ (album.price * 1.3).toFixed(2) }}</span>
-              <span class="discount">-23%</span>
+            <div class="price-section" aria-label="Pricing">
+              <span class="price" aria-label="Current price">${{ album.price.toFixed(2) }}</span>
+              <span class="original-price" aria-label="Original price"><del>${{ (album.price * 1.3).toFixed(2) }}</del></span>
+              <span class="discount" role="status">-23% off</span>
             </div>
             
             <div class="track-preview">
-              <h4>Track Preview</h4>
-              <div class="tracks">
-                <div 
+              <h4 id="track-list-heading">Track Preview</h4>
+              <div class="tracks" role="list" aria-labelledby="track-list-heading">
+                <button 
                   v-for="(track, index) in tracks" 
                   :key="index"
                   class="track-item"
                   :class="{ playing: currentTrack === index && isPlaying }"
                   @click="playTrack(index)"
+                  role="listitem"
+                  :aria-label="`Play track ${index + 1}: ${track}, duration 3:${20 + index * 7}`"
+                  :aria-current="currentTrack === index && isPlaying ? 'true' : undefined"
                 >
-                  <span class="track-number">{{ index + 1 }}</span>
+                  <span class="track-number" aria-hidden="true">{{ index + 1 }}</span>
                   <span class="track-name">{{ track }}</span>
-                  <span class="track-duration">3:{{ 20 + index * 7 }}</span>
-                </div>
+                  <span class="track-duration" aria-hidden="true">3:{{ 20 + index * 7 }}</span>
+                </button>
               </div>
             </div>
             
-            <div class="modal-actions">
-              <button class="btn btn-primary" @click="addToCart">
-                <ShoppingCart :size="18" />
-                Add to Cart
+            <div class="modal-actions" role="group" aria-label="Purchase options">
+              <button 
+                class="btn btn-primary" 
+                @click="addToCart"
+                :aria-label="`Add ${album.title} to cart for $${album.price.toFixed(2)}`"
+                ref="addToCartButton"
+              >
+                <ShoppingCart :size="18" aria-hidden="true" />
+                <span>Add to Cart</span>
               </button>
-              <button class="btn btn-secondary" @click="buyNow">
-                <Zap :size="18" />
-                Buy Now
+              <button 
+                class="btn btn-secondary" 
+                @click="buyNow"
+                :aria-label="`Buy ${album.title} now for $${album.price.toFixed(2)}`"
+              >
+                <Zap :size="18" aria-hidden="true" />
+                <span>Buy Now</span>
               </button>
             </div>
           </div>
@@ -100,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { 
   X, Heart, Music, Disc3, Clock, Calendar, 
   ShoppingCart, Zap, Play, Pause 
@@ -118,6 +151,12 @@ const emit = defineEmits<{
   addToWishlist: [album: Album]
 }>()
 
+// Refs for focus management
+const modalContent = ref<HTMLElement | null>(null)
+const closeButton = ref<HTMLButtonElement | null>(null)
+const addToCartButton = ref<HTMLButtonElement | null>(null)
+let previouslyFocusedElement: HTMLElement | null = null
+
 const isPlaying = ref(false)
 const currentTrack = ref(0)
 const isWishlisted = ref(false)
@@ -130,7 +169,77 @@ const tracks = computed(() => [
   'Async Love'
 ])
 
-const togglePlay = () => {
+// Focus trap and keyboard management
+const getFocusableElements = (): HTMLElement[] => {
+  if (!modalContent.value) return []
+  const focusableSelectors = [
+    'button:not([disabled])',
+    'a[href]',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+  ]
+  return Array.from(
+    modalContent.value.querySelectorAll<HTMLElement>(focusableSelectors.join(','))
+  )
+}
+
+const handleKeydown = (event: KeyboardEvent): void => {
+  if (event.key === 'Escape') {
+    emit('close')
+    return
+  }
+
+  if (event.key === 'Tab') {
+    const focusableElements = getFocusableElements()
+    if (focusableElements.length === 0) return
+
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+
+    if (event.shiftKey) {
+      // Shift + Tab
+      if (document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement?.focus()
+      }
+    } else {
+      // Tab
+      if (document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement?.focus()
+      }
+    }
+  }
+}
+
+const onModalOpen = (): void => {
+  // Store the previously focused element
+  previouslyFocusedElement = document.activeElement as HTMLElement
+  
+  // Focus the close button when modal opens
+  nextTick(() => {
+    closeButton.value?.focus()
+  })
+}
+
+const onModalClose = (): void => {
+  // Restore focus to the previously focused element
+  if (previouslyFocusedElement) {
+    previouslyFocusedElement.focus()
+    previouslyFocusedElement = null
+  }
+}
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (previouslyFocusedElement) {
+    previouslyFocusedElement.focus()
+  }
+})
+
+const togglePlay = (): void => {
   isPlaying.value = !isPlaying.value
   if (isPlaying.value) {
     toast.success('Now playing preview', {
@@ -139,7 +248,7 @@ const togglePlay = () => {
   }
 }
 
-const playTrack = (index: number) => {
+const playTrack = (index: number): void => {
   currentTrack.value = index
   isPlaying.value = true
   toast.info(`Playing track ${index + 1}`, {
@@ -147,7 +256,7 @@ const playTrack = (index: number) => {
   })
 }
 
-const toggleWishlist = () => {
+const toggleWishlist = (): void => {
   isWishlisted.value = !isWishlisted.value
   emit('addToWishlist', props.album)
   toast.success(
@@ -156,18 +265,18 @@ const toggleWishlist = () => {
   )
 }
 
-const addToCart = () => {
+const addToCart = (): void => {
   toast.success('Added to cart!', {
     description: `${props.album.title} - $${props.album.price.toFixed(2)}`,
     action: {
       label: 'View Cart',
-      onClick: () => toast.info('Opening cart...')
+      onClick: (): void => { toast.info('Opening cart...') }
     }
   })
   emit('close')
 }
 
-const buyNow = () => {
+const buyNow = (): void => {
   toast.promise(
     new Promise(resolve => setTimeout(resolve, 2000)),
     {
@@ -180,6 +289,19 @@ const buyNow = () => {
 </script>
 
 <style scoped>
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -218,11 +340,27 @@ const buyNow = () => {
   cursor: pointer;
   z-index: 10;
   transition: all 0.3s ease;
+  /* Minimum touch target size for accessibility */
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: rotate(90deg);
+}
+
+.close-btn:focus {
+  outline: 3px solid #a78bfa;
+  outline-offset: 2px;
+}
+
+.close-btn:focus-visible {
+  outline: 3px solid #a78bfa;
+  outline-offset: 2px;
 }
 
 .modal-image {

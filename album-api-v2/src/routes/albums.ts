@@ -1,5 +1,4 @@
-import { Router, Request, Response } from 'express';
-import type { Router as IRouter } from 'express';
+import { Router, Request, Response, Router as IRouter } from 'express';
 import {
   getAllAlbums,
   getAlbumById,
